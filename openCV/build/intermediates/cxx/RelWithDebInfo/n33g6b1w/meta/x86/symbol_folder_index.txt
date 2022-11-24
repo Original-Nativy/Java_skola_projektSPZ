@@ -1,0 +1,1 @@
+/Users/Dan/AndroidStudioProjects/New_project_Java/openCV/build/intermediates/cxx/RelWithDebInfo/n33g6b1w/obj/x86
