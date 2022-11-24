@@ -24,10 +24,12 @@
 
     <ImageView
         android:id="@+id/SPZ_imgV"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="94dp"
         android:layout_gravity="bottom"
         android:background="@color/black"
+        android:scaleType="fitXY"
+        android:adjustViewBounds="true"
         android:visibility="visible"></ImageView>
 
 </FrameLayout>

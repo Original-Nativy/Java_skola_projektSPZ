@@ -67,7 +67,7 @@ public class MainActivity extends CameraActivity {
         mOpenCvCameraView.setCvCameraViewListener(cvCameraViewListener);
 
         imgSPZ_view= (ImageView) findViewById(R.id.SPZ_imgV);
-        bitmap = Bitmap.createBitmap(960, 720, Bitmap.Config.ARGB_8888);
+        bitmap = Bitmap.createBitmap(720, 960, Bitmap.Config.ARGB_8888);
         imgSPZ_view.setImageBitmap(bitmap);
     }
 
@@ -91,6 +91,8 @@ public class MainActivity extends CameraActivity {
         Mat sedaaa;
         Mat grayImage;
         Rect obdelnik;
+        Mat plate;
+        Mat plateImg;
 
         @Override
         public void onCameraViewStarted(int width, int height) {
@@ -103,7 +105,6 @@ public class MainActivity extends CameraActivity {
         }
         public Rect GetPlateLocation(Mat sourceImage, int contourCount,int koef,int type)
         {
-
             grayImage = new Mat(sourceImage.width(),sourceImage.height(), CvType.CV_8UC1);
             Imgproc.cvtColor(sourceImage,grayImage,Imgproc.COLOR_BGRA2GRAY);
 
@@ -143,19 +144,14 @@ public class MainActivity extends CameraActivity {
 
 
             Collections.sort(contoitAreas, Comparator.comparing(p ->  -p.second));
-            for(int i = 0; i < contoitAreas.stream().count();i++)
-            {
-                Log.d("Test1", "for:"+ contoitAreas.get(i));
-            }
+
             List<Pair<Integer, Double>> bestContours;
             if(contoitAreas.stream().count()>1) {
                 bestContours = contoitAreas.subList(0, 1);
-                Log.d("Test1", "if 1:"+ bestContours.get(0));
             }
             else if(contoitAreas.stream().count()==1)
             {
                 bestContours = contoitAreas.subList(0, 1);
-                Log.d("Test1", "if 2:"+ bestContours.get(0));
             }
             else{ bestContours= null;}
 
@@ -170,10 +166,8 @@ public class MainActivity extends CameraActivity {
             if(bestContours != null)
             {
                 int key = bestContours.get(0).first;
-                Log.d("Test1", "vysledek:"+ contours.get(0));
                 Rect rec = Imgproc.boundingRect(contours.get(key));
                 return rec;
-
             }
 
             return nic;
@@ -185,6 +179,18 @@ public class MainActivity extends CameraActivity {
             Imgproc.findContours(_letter,contoury,hier,stromcek,Imgproc.CHAIN_APPROX_SIMPLE);
             return contoury;
         }
+        public Mat CropImage(Mat grayOriginal, Rect rec){
+            plateImg = new Mat(grayOriginal.height(),grayOriginal.width(), CvType.CV_8UC1);
+            plateImg= plateImg.setTo(new Scalar(255));
+            if(rec.width==0 ||rec.height==0)
+                rec = new Rect(1,1,1,1);
+            grayOriginal= grayOriginal.submat(rec);
+            grayOriginal.copyTo(plateImg);
+            plateImg= plateImg.t();
+            Log.d("test", "sirka vyska: " +plateImg.width());
+            return plateImg;
+        }
+
         public void cistic(){
             if(input_rgba != null)
                 input_rgba.release();
@@ -208,6 +214,10 @@ public class MainActivity extends CameraActivity {
                 sedaaa.release();
             if(grayImage!=null)
                 grayImage.release();
+            if(plate!=null)
+                plate.release();
+            if(plateImg!=null)
+                plateImg.release();
         }
         @Override
         public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
@@ -236,13 +246,37 @@ public class MainActivity extends CameraActivity {
                     Rect plateLoc = i !=2 ? GetPlateLocation(sourceImage,1,2,8)
                             : GetPlateLocation(sourceImage,1,2,8) ;
                     obdelnik= plateLoc;
+                    float pomocsirka=plateLoc.height;
+                    float pomocvyska=plateLoc.width;
+                    Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
                     Imgproc.rectangle(img_rectangle,plateLoc,new Scalar(255,0,0,220),10);
+
+                    plate = i !=2 ? CropImage(binImage,plateLoc) : CropImage(sedaaa,plateLoc);
                 }
-                //float pomocsirka=binImage.width();
-                //float pomocvyska=binImage.height();
-                //Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
-                Utils.matToBitmap(binImage, bitmap);//konverze z mat do Bitmapy a uloz do promenne bitmap
-                imgSPZ_view.invalidate();//aktualizace imageview
+
+                float pomocsirka=plate.width();
+                float pomocvyska=plate.height();
+                Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
+
+                if(pomocsirka == 0.0 || pomocvyska ==0){
+                    plate =new Mat(10,10,CvType.CV_8UC1);
+                    plate = plate.setTo(new Scalar(0));
+                }
+
+                //plate = plate.t();
+
+                //Core.flip(plate,plate,0);
+
+                //bitmap.reconfigure(plate.width(),plate.height(), Bitmap.Config.ARGB_8888);
+                Log.d("sirka", " bitmapa sirka vyska: " + bitmap.getWidth() + bitmap.getHeight());
+                //Utils.matToBitmap(plate, bitmap);//konverze z mat do Bitmapy a uloz do promenne bitmap
+                //imgSPZ_view.invalidate();//aktualizace imageview
+                runOnUiThread(()->{
+                    bitmap = Bitmap.createBitmap(plate.width(),plate.height(), Bitmap.Config.ARGB_8888);
+                    Utils.matToBitmap(plate, bitmap);
+                    imgSPZ_view.setImageBitmap(bitmap);
+                    imgSPZ_view.invalidate();
+                });
             }
             if (obdelnik!= null && i%10<10){
                 Imgproc.rectangle(img_rectangle,obdelnik,new Scalar(255,0,0,220),10);
