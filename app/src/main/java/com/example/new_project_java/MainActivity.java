@@ -277,7 +277,7 @@ public class MainActivity extends CameraActivity {
                     imgSPZ_view.setImageBitmap(bitmap);
                     imgSPZ_view.invalidate();
                 });
-            }
+            }s
             if (obdelnik!= null && i%10<10){
                 Imgproc.rectangle(img_rectangle,obdelnik,new Scalar(255,0,0,220),10);
             }
