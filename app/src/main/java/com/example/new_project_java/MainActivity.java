@@ -1,7 +1,5 @@
 package com.example.new_project_java;
-import static org.opencv.core.Core.ROTATE_90_COUNTERCLOCKWISE;
 import android.graphics.Bitmap;
-import android.hardware.Camera;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Pair;
@@ -17,22 +15,14 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
-import androidx.appcompat.app.AppCompatActivity;
-import android.os.Bundle;
-import java.lang.reflect.Executable;
+
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Dictionary;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 enum Method{
     Otsu,
@@ -93,7 +83,8 @@ public class MainActivity extends CameraActivity {
         Rect obdelnik;
         Mat plate;
         Mat plateImg;
-
+        Mat imgToTess;
+        Mat Pomoc2,blacke,imgout;
         @Override
         public void onCameraViewStarted(int width, int height) {
 
@@ -144,6 +135,12 @@ public class MainActivity extends CameraActivity {
 
 
             Collections.sort(contoitAreas, Comparator.comparing(p ->  -p.second));
+            if(contoitAreas != null){
+                contoitAreas.removeIf(e -> {
+                    Rect r = Imgproc.boundingRect(contours.get(e.first));
+                    //Log.d("test", "y x : " +r.x +" " +r.height + " "+binImage.width());
+                    return r.x < 3 || (r.x+r.width) > binImage.width() - 5;
+                } );}
 
             List<Pair<Integer, Double>> bestContours;
             if(contoitAreas.stream().count()>1) {
@@ -155,10 +152,8 @@ public class MainActivity extends CameraActivity {
             }
             else{ bestContours= null;}
 
-            //bestContours.removeIf(e -> {
-                //Rect r = Imgproc.boundingRect(contours.get(e.first));
-              //  return r.x < 3 || r.width > binImage.height() - 5;
-            //} );
+
+
             if(bestContours != null)
                 bestContours = bestContours.subList(0, 1);
 
@@ -187,8 +182,155 @@ public class MainActivity extends CameraActivity {
             grayOriginal= grayOriginal.submat(rec);
             grayOriginal.copyTo(plateImg);
             plateImg= plateImg.t();
-            Log.d("test", "sirka vyska: " +plateImg.width());
+
             return plateImg;
+        }
+        public int applyLetterC(Mat _letterimage,int stromcek, int cont)
+        {
+            ArrayList<MatOfPoint> contours = FindContour(_letterimage, stromcek);
+            List<Pair<Integer, Double>> dict = new ArrayList<Pair<Integer, Double>>();
+            List<Rect> listR = new ArrayList<Rect>();
+            for(int i = 0; i <contours.size(); i++)
+            {
+                double area = Imgproc.contourArea(contours.get(i));
+                Rect rect = Imgproc.boundingRect(contours.get(i));
+                int sirka = pomocInput.width();
+                double ar = rect.width / rect.height;
+                int approxArea = rect.width * rect.height;
+
+                if (rect.width > 3 && rect.height > 10 && ar < 0.4 && sirka / 100 < rect.width
+                        && area > 30 && rect.x > 3 && rect.width < _letterimage.width() - 5 && rect.y > 2)
+                {
+                    dict.add(new Pair(i,area));
+                    listR.add(rect);
+                }
+                else
+                {
+                    //dict.add(new Pair(i,area));
+                    listR.add(rect);
+                }
+            }
+            List<Pair<Integer, Double>> item = dict;
+
+            Collections.sort(item, Comparator.comparing(p -> -p.second));
+            if(item.size()>8)
+                item = item.subList(0, 9);
+            else if(item!= null)
+                item = item.subList(0, (int) item.size());
+
+            Log.d("item", "pocet: "+dict.size() );
+            Log.d("item", "pocet: "+cont );
+
+            if(dict.size()<6)
+            {
+                if(cont == 0)
+                    return 0;
+                else
+                {
+                    imgToTess = spzPismenaUprava(item, _letterimage, contours);
+                    return 7;
+                }
+            }
+
+            else if(dict.size()>=7) {
+                List<Pair<Integer, Double>> zalozni = item;
+                List<Pair<Integer, Double>> arD = new ArrayList<Pair<Integer, Double>>();
+                List<Integer> ar = new ArrayList<Integer>();
+                for (int i = 0; i < dict.size(); i++) {
+                    Rect listR1 = Imgproc.boundingRect(contours.get(item.get(i).first));
+                    arD.add(new Pair(i, (double)listR1.height * (double)listR1.width));
+                }
+
+
+                List<Pair<Integer, Double>> arD1 = arD;
+                Collections.sort(arD1, Comparator.comparing(p -> -p.second));
+
+                List<Pair<Integer, Double>> medianEnume = new ArrayList<Pair<Integer, Double>>();
+
+                medianEnume = arD1.subList(4, 6);
+
+                long CountAr = arD1.stream().count();
+                long minipocitadlo = arD.stream().count();
+                List<Integer> todelete = new ArrayList<Integer>();
+
+                List<Pair<Integer, Double>> median = new ArrayList<Pair<Integer, Double>>();
+                median = medianEnume;
+                double klic1 = median.stream().findFirst().get().second;
+                double klic2 = median.get(1).second;
+                double klic = (klic1 + klic2) / 2;
+
+                for (int i = 0; i<item.size() ; i++) //item.size()
+                {
+                    if (Math.abs(arD1.get(i).second - klic) > (arD1.get(i)).second * 0.4) {
+                        todelete.add(i);
+                        item.removeIf(e -> todelete.contains(e.first));
+                        Collections.sort(item, Comparator.comparing(p -> -p.second));
+                        Log.d("sirka", ": er" );
+
+                        item = arD1.subList(0, (int) --minipocitadlo+1);//error
+
+                    }
+                }
+                Log.d("sirka", ": " +item.size());
+                if (item.size() < 6) {
+                    if (cont == 1) {
+                        imgToTess = spzPismenaUprava(zalozni, _letterimage, contours);
+                        return 7;
+                    }
+                } else {imgToTess = spzPismenaUprava(item, _letterimage, contours);
+                    return 7;
+                }
+            }
+            else
+            {
+                imgToTess = spzPismenaUprava(item, _letterimage, contours);
+                return 7;
+            }
+            return 5;
+        }
+        public Mat spzPismenaUprava(List<Pair<Integer, Double>> zalozni, Mat _letterimage, ArrayList<MatOfPoint> contours) {
+            blacke = new Mat(_letterimage.width(), _letterimage.height(), _letterimage.type()
+                    , new Scalar(0));
+            Pomoc2 = new Mat(_letterimage.width() + 2, _letterimage.height() + 2, _letterimage.type()
+                    , new Scalar(255));
+            imgout = new Mat(blacke.width(), blacke.height(), blacke.type()
+                    , new Scalar(0));
+            Mat letterimage;
+            Mat Pomoc;
+            for (int i = 0; i < zalozni.size(); i++) {
+                k= zalozni.get(i).first;
+                Imgproc.drawContours(blacke, contours, k, new Scalar(255), -1);
+                Rect rec = Imgproc.boundingRect(contours.get(k));
+                Imgproc.rectangle(imgout,rec,new Scalar(255),-1);
+
+
+
+                letterimage = _letterimage.t();
+
+                letterimage= _letterimage.submat(rec);
+                Pomoc=Pomoc2.t();
+                Pomoc= Pomoc.submat(rec);
+
+                letterimage.copyTo(Pomoc);
+                rec.empty();
+
+                //plateImg= plateImg.t();
+            }
+
+            Mat imgoutHelp;
+            imgoutHelp=imgout.t();
+            Core.bitwise_and(imgoutHelp,blacke,imgoutHelp);
+            Log.d("Test", "imgout:" +imgoutHelp.width()+" vyska "+ imgoutHelp.height());
+            Log.d("Test", "black:" +_letterimage.width()+" vyska "+ _letterimage.height());
+            imgoutHelp=imgoutHelp.t();
+            Core.bitwise_and(imgoutHelp,_letterimage,imgoutHelp);
+            Log.d("Test", "sda:");
+            imgoutHelp=imgoutHelp.t();
+            Imgproc.threshold(imgoutHelp,imgoutHelp,100, 255,-1);
+            Core.bitwise_and(imgoutHelp,blacke,imgoutHelp);
+
+            return imgout;
+
         }
 
         public void cistic(){
@@ -218,6 +360,14 @@ public class MainActivity extends CameraActivity {
                 plate.release();
             if(plateImg!=null)
                 plateImg.release();
+            if(imgToTess != null)
+                imgToTess.release();
+            if(blacke != null)
+                blacke.release();
+            if(Pomoc2 != null)
+                Pomoc2.release();
+            if(imgout != null)
+                imgout.release();
         }
         @Override
         public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
@@ -241,22 +391,24 @@ public class MainActivity extends CameraActivity {
             i++;//pocitadlo snimku
             Imgproc.rectangle(img_rectangle,new Rect(x ,y,koefSir/koefSir,koefVys/koefVys),new Scalar(255,0,255,220),10);//vykresli orientacni obdelnik[tecku]
             if(i%10 ==0) {//co x snimku aplikuje vyhledavac spz
-                for(int i = 0; i<1; i++)
+                for(int i = 0; i<2; i++)
                 {
-                    Rect plateLoc = i !=2 ? GetPlateLocation(sourceImage,1,2,8)
+                    Rect plateLoc = i !=1 ? GetPlateLocation(sourceImage,1,2,8)
                             : GetPlateLocation(sourceImage,1,2,8) ;
                     obdelnik= plateLoc;
-                    float pomocsirka=plateLoc.height;
-                    float pomocvyska=plateLoc.width;
-                    Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
                     Imgproc.rectangle(img_rectangle,plateLoc,new Scalar(255,0,0,220),10);
-
                     plate = i !=2 ? CropImage(binImage,plateLoc) : CropImage(sedaaa,plateLoc);
+                    int ret = applyLetterC(plate, 3,i);
+                    if (ret==7)
+                    {
+                        //neco zrob
+                        break;
+                    }
                 }
 
                 float pomocsirka=plate.width();
                 float pomocvyska=plate.height();
-                Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
+                //Log.d("sirka", "sirka vyska: " + pomocsirka + pomocvyska);
 
                 if(pomocsirka == 0.0 || pomocvyska ==0){
                     plate =new Mat(10,10,CvType.CV_8UC1);
@@ -268,16 +420,14 @@ public class MainActivity extends CameraActivity {
                 //Core.flip(plate,plate,0);
 
                 //bitmap.reconfigure(plate.width(),plate.height(), Bitmap.Config.ARGB_8888);
-                Log.d("sirka", " bitmapa sirka vyska: " + bitmap.getWidth() + bitmap.getHeight());
-                //Utils.matToBitmap(plate, bitmap);//konverze z mat do Bitmapy a uloz do promenne bitmap
-                //imgSPZ_view.invalidate();//aktualizace imageview
+                //Log.d("sirka", " bitmapa sirka vyska: " + bitmap.getWidth() + bitmap.getHeight());
                 runOnUiThread(()->{
                     bitmap = Bitmap.createBitmap(plate.width(),plate.height(), Bitmap.Config.ARGB_8888);
                     Utils.matToBitmap(plate, bitmap);
                     imgSPZ_view.setImageBitmap(bitmap);
                     imgSPZ_view.invalidate();
                 });
-            }s
+            }
             if (obdelnik!= null && i%10<10){
                 Imgproc.rectangle(img_rectangle,obdelnik,new Scalar(255,0,0,220),10);
             }
