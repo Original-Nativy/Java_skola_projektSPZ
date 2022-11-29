@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/mainmenu"
+        android:icon="@drawable/ic_baseline_menu_24"
+        app:showAsAction="always"
+        android:title="TODO">
+        <menu>
+            <item
+                android:id="@+id/options"
+                android:icon="@drawable/ic_baseline_attractions_24"
+                android:title="Settings"
+                app:showAsAction="never" />
+            <item
+                android:id="@+id/detect"
+                android:icon="@drawable/ic_baseline_photo_camera_24"
+                android:title="Detector"
+                app:showAsAction="never" />
+
+        </menu>
+
+    </item>
+
+</menu>

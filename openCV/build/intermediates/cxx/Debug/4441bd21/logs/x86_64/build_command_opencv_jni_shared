@@ -1,0 +1,4 @@
+/Users/Dan/Library/Android/sdk/cmake/3.18.1/bin/ninja \
+  -C \
+  /Users/Dan/AndroidStudioProjects/New_project_Java/openCV/.cxx/Debug/4441bd21/x86_64 \
+  opencv_jni_shared
